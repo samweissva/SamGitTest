@@ -1,0 +1,6 @@
+D:\Sam Weiss D\SamTry\MixyTry\uploadfile\bin\Debug\uploadfile.exe.config
+D:\Sam Weiss D\SamTry\MixyTry\uploadfile\bin\Debug\uploadfile.exe
+D:\Sam Weiss D\SamTry\MixyTry\uploadfile\bin\Debug\uploadfile.pdb
+D:\Sam Weiss D\SamTry\MixyTry\uploadfile\obj\Debug\uploadfile.csprojResolveAssemblyReference.cache
+D:\Sam Weiss D\SamTry\MixyTry\uploadfile\obj\Debug\uploadfile.exe
+D:\Sam Weiss D\SamTry\MixyTry\uploadfile\obj\Debug\uploadfile.pdb

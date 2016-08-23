@@ -1,0 +1,12 @@
+D:\Mixy's\coding\MixyTry\sycn\bin\Debug\sycn.exe.config
+D:\Mixy's\coding\MixyTry\sycn\bin\Debug\sycn.exe
+D:\Mixy's\coding\MixyTry\sycn\bin\Debug\sycn.pdb
+D:\Mixy's\coding\MixyTry\sycn\obj\Debug\sycn.csprojResolveAssemblyReference.cache
+D:\Mixy's\coding\MixyTry\sycn\obj\Debug\sycn.exe
+D:\Mixy's\coding\MixyTry\sycn\obj\Debug\sycn.pdb
+D:\Sam Weiss D\SamTry\MixyTry\sycn\bin\Debug\sycn.exe.config
+D:\Sam Weiss D\SamTry\MixyTry\sycn\obj\Debug\sycn.exe
+D:\Sam Weiss D\SamTry\MixyTry\sycn\obj\Debug\sycn.pdb
+D:\Sam Weiss D\SamTry\MixyTry\sycn\bin\Debug\sycn.exe
+D:\Sam Weiss D\SamTry\MixyTry\sycn\bin\Debug\sycn.pdb
+D:\Sam Weiss D\SamTry\MixyTry\sycn\obj\Debug\sycn.csprojResolveAssemblyReference.cache

@@ -1,0 +1,6 @@
+D:\Sam Weiss D\SamTry\MixyTry\IO_Byte_ReadWrite\bin\Debug\IO_Byte_ReadWrite.exe.config
+D:\Sam Weiss D\SamTry\MixyTry\IO_Byte_ReadWrite\bin\Debug\IO_Byte_ReadWrite.exe
+D:\Sam Weiss D\SamTry\MixyTry\IO_Byte_ReadWrite\bin\Debug\IO_Byte_ReadWrite.pdb
+D:\Sam Weiss D\SamTry\MixyTry\IO_Byte_ReadWrite\obj\Debug\IO_Byte_ReadWrite.csprojResolveAssemblyReference.cache
+D:\Sam Weiss D\SamTry\MixyTry\IO_Byte_ReadWrite\obj\Debug\IO_Byte_ReadWrite.exe
+D:\Sam Weiss D\SamTry\MixyTry\IO_Byte_ReadWrite\obj\Debug\IO_Byte_ReadWrite.pdb

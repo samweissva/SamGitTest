@@ -1,0 +1,11 @@
+﻿{
+  "UserName": "",
+  "Password": "",
+  "Host": "smtp.126.com",
+  "From": "",
+  "To": "",
+  "Subject": "Retrieve External Ip Address",
+  "Body": "This is Body",
+  "GetExternalIpAddressUrl": "http://icanhazip.com",
+  "ThreadSpan": 5,
+}

@@ -1,0 +1,6 @@
+D:\Sam Weiss D\SamTry\MixyTry\ExpressionTrees\bin\Debug\ExpressionTrees.exe.config
+D:\Sam Weiss D\SamTry\MixyTry\ExpressionTrees\bin\Debug\ExpressionTrees.exe
+D:\Sam Weiss D\SamTry\MixyTry\ExpressionTrees\bin\Debug\ExpressionTrees.pdb
+D:\Sam Weiss D\SamTry\MixyTry\ExpressionTrees\obj\Debug\ExpressionTrees.csprojResolveAssemblyReference.cache
+D:\Sam Weiss D\SamTry\MixyTry\ExpressionTrees\obj\Debug\ExpressionTrees.exe
+D:\Sam Weiss D\SamTry\MixyTry\ExpressionTrees\obj\Debug\ExpressionTrees.pdb

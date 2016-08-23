@@ -1,0 +1,6 @@
+D:\Sam Weiss D\SamTry\MixyTry\MyTypeScript\bin\MyTypeScript.dll.config
+D:\Sam Weiss D\SamTry\MixyTry\MyTypeScript\bin\MyTypeScript.dll
+D:\Sam Weiss D\SamTry\MixyTry\MyTypeScript\bin\MyTypeScript.pdb
+D:\Sam Weiss D\SamTry\MixyTry\MyTypeScript\obj\Debug\MyTypeScript.csprojResolveAssemblyReference.cache
+D:\Sam Weiss D\SamTry\MixyTry\MyTypeScript\obj\Debug\MyTypeScript.dll
+D:\Sam Weiss D\SamTry\MixyTry\MyTypeScript\obj\Debug\MyTypeScript.pdb

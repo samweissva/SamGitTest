@@ -1,0 +1,6 @@
+D:\Sam Weiss D\SamTry\MixyTry\PredicateBuilder linq\bin\Debug\PredicateBuilder linq.exe.config
+D:\Sam Weiss D\SamTry\MixyTry\PredicateBuilder linq\bin\Debug\PredicateBuilder linq.exe
+D:\Sam Weiss D\SamTry\MixyTry\PredicateBuilder linq\bin\Debug\PredicateBuilder linq.pdb
+D:\Sam Weiss D\SamTry\MixyTry\PredicateBuilder linq\obj\Debug\PredicateBuilder linq.exe
+D:\Sam Weiss D\SamTry\MixyTry\PredicateBuilder linq\obj\Debug\PredicateBuilder linq.pdb
+D:\Sam Weiss D\SamTry\MixyTry\PredicateBuilder linq\obj\Debug\PredicateBuilder linq.csprojResolveAssemblyReference.cache

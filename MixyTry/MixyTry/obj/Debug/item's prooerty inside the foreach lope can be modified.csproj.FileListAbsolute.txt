@@ -1,0 +1,9 @@
+D:\Mixy's\coding\MixyTry\MixyTry\bin\Debug\MixyTry.exe.config
+D:\Mixy's\coding\MixyTry\MixyTry\obj\Debug\MixyTry.exe
+D:\Mixy's\coding\MixyTry\MixyTry\obj\Debug\MixyTry.pdb
+D:\Sam Weiss D\SamTry\MixyTry\MixyTry\bin\Debug\MixyTry.exe.config
+D:\Sam Weiss D\SamTry\MixyTry\MixyTry\bin\Debug\MixyTry.exe
+D:\Sam Weiss D\SamTry\MixyTry\MixyTry\bin\Debug\MixyTry.pdb
+D:\Sam Weiss D\SamTry\MixyTry\MixyTry\obj\Debug\item's prooerty inside the foreach lope can be modified.csprojResolveAssemblyReference.cache
+D:\Sam Weiss D\SamTry\MixyTry\MixyTry\obj\Debug\MixyTry.exe
+D:\Sam Weiss D\SamTry\MixyTry\MixyTry\obj\Debug\MixyTry.pdb

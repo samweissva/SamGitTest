@@ -1,0 +1,6 @@
+D:\Sam Weiss D\SamTry\MixyTry\ListNull\bin\Debug\ListNull.exe.config
+D:\Sam Weiss D\SamTry\MixyTry\ListNull\bin\Debug\ListNull.exe
+D:\Sam Weiss D\SamTry\MixyTry\ListNull\bin\Debug\ListNull.pdb
+D:\Sam Weiss D\SamTry\MixyTry\ListNull\obj\Debug\ListNull.csprojResolveAssemblyReference.cache
+D:\Sam Weiss D\SamTry\MixyTry\ListNull\obj\Debug\ListNull.exe
+D:\Sam Weiss D\SamTry\MixyTry\ListNull\obj\Debug\ListNull.pdb

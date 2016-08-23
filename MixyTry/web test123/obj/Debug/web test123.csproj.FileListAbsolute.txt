@@ -1,0 +1,11 @@
+D:\Mixy's\coding\MixyTry\web test123\bin\web test123.dll.config
+D:\Mixy's\coding\MixyTry\web test123\bin\web test123.dll
+D:\Mixy's\coding\MixyTry\web test123\bin\web test123.pdb
+D:\Mixy's\coding\MixyTry\web test123\obj\Debug\web test123.dll
+D:\Mixy's\coding\MixyTry\web test123\obj\Debug\web test123.pdb
+D:\Sam Weiss D\SamTry\MixyTry\web test123\bin\web test123.dll.config
+D:\Sam Weiss D\SamTry\MixyTry\web test123\bin\web test123.dll
+D:\Sam Weiss D\SamTry\MixyTry\web test123\bin\web test123.pdb
+D:\Sam Weiss D\SamTry\MixyTry\web test123\obj\Debug\web test123.csprojResolveAssemblyReference.cache
+D:\Sam Weiss D\SamTry\MixyTry\web test123\obj\Debug\web test123.dll
+D:\Sam Weiss D\SamTry\MixyTry\web test123\obj\Debug\web test123.pdb

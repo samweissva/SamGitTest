@@ -1,0 +1,6 @@
+D:\Sam Weiss D\SamTry\MixyTry\IntNull\bin\Debug\IntNull.exe.config
+D:\Sam Weiss D\SamTry\MixyTry\IntNull\bin\Debug\IntNull.exe
+D:\Sam Weiss D\SamTry\MixyTry\IntNull\bin\Debug\IntNull.pdb
+D:\Sam Weiss D\SamTry\MixyTry\IntNull\obj\Debug\IntNull.csprojResolveAssemblyReference.cache
+D:\Sam Weiss D\SamTry\MixyTry\IntNull\obj\Debug\IntNull.exe
+D:\Sam Weiss D\SamTry\MixyTry\IntNull\obj\Debug\IntNull.pdb

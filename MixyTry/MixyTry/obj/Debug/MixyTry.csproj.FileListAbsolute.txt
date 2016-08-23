@@ -1,0 +1,6 @@
+D:\Mixy's\coding\MixyTry\MixyTry\bin\Debug\MixyTry.exe.config
+D:\Mixy's\coding\MixyTry\MixyTry\bin\Debug\MixyTry.exe
+D:\Mixy's\coding\MixyTry\MixyTry\bin\Debug\MixyTry.pdb
+D:\Mixy's\coding\MixyTry\MixyTry\obj\Debug\MixyTry.csprojResolveAssemblyReference.cache
+D:\Mixy's\coding\MixyTry\MixyTry\obj\Debug\MixyTry.exe
+D:\Mixy's\coding\MixyTry\MixyTry\obj\Debug\MixyTry.pdb

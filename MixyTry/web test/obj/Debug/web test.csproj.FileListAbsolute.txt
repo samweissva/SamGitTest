@@ -1,0 +1,6 @@
+D:\Mixy's\coding\MixyTry\web test\bin\web test.dll.config
+D:\Mixy's\coding\MixyTry\web test\bin\web test.dll
+D:\Mixy's\coding\MixyTry\web test\bin\web test.pdb
+D:\Mixy's\coding\MixyTry\web test\obj\Debug\web test.csprojResolveAssemblyReference.cache
+D:\Mixy's\coding\MixyTry\web test\obj\Debug\web test.dll
+D:\Mixy's\coding\MixyTry\web test\obj\Debug\web test.pdb

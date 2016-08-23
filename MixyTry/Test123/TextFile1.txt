@@ -1,0 +1,1213 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Composition;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
+using Kulv.YCF.AdminWeb.Core;
+using Kulv.YCF.Framework.CommomHelper;
+using Kulv.YCF.Model.DbModel;
+using Kulv.YCF.Model.ViewModel;
+using Kulv.YCF.Web.BLL.Link;
+using Kulv.YCF.Web.BLL.Products;
+using Kulv.YCF.Framework.ExceptionHeper;
+using Kulv.YCF.Framework.LogHelper;
+using Kulv.YCF.Model;
+using Kulv.YCF.Composition.Mvc;
+using Common;
+using System.IO;
+using Kulv.YCF.Model.Enums;
+using Kulv.YCF.Model.InputModel;
+using Kulv.YCF.Web.BLL.ThirdParty;
+using Kulv.YCF.Model.ApiViewModel.DCPModule;
+using Kulv.YCF.Web.BLL.Order;
+using Kulv.YCF.Web.BLL.TPGoodsMapping;
+using Kulv.YCF.Web.BLL.SmsEmail;
+using Kulv.YCF.Core.AppSetting;
+using Kulv.YCF.Core.StockCore;
+
+namespace Kulv.YCF.AdminWeb.Areas.Link.Controllers
+{
+    [Description("渠道链接模块")]
+    [Export]
+    public class ChannelLinkController : BaseController
+    {
+        #region 属性
+
+        [Import]
+        public ILinkContract LinkContract { get; set; }
+
+        [Import]
+        public IProductPackageContract ProductPackageContract { get; set; }
+
+        [Import]
+        public IChannelLinkLogContract ChannelLinkLogContract { get; set; }//链接日志
+
+        [Import]
+        public IThirdPartyContract ThirdPartyContract { get; set; }
+        [Import]
+        public IOrderContact OrderContract { set; get; }
+
+        [Import]
+        public IMessageContract MessageContract { get; set; }
+
+        [Import]
+        public ITPGoodsMappingContract TPGoodsMappingContract { get; set; }
+
+        [Import]
+        public IChannelContract ChannelContract { get; set; }
+
+        [Import]
+        public IProductContract ProductContract { get; set; }
+
+        #endregion
+
+        ///// <summary>
+        ///// 查看渠道账户权限
+        ///// </summary>
+        //public static bool LookChannelUser = AdminContext.CheckUserPermission("lookchanneluser");
+        ///// <summary>
+        ///// 新增链接权限
+        ///// </summary>
+        //public static bool AddChecneLink = AdminContext.CheckUserPermission("addchecnelink");
+
+        /// <summary>
+        /// 链接列表
+        /// </summary>
+        /// <returns></returns>
+        [Description("渠道链接列表展示(页面)")]
+        public ActionResult List()
+        {
+            ViewBag.LoginId = MemberInfo.LoginId;
+            ViewBag.IsLiuLiang = MemberInfo.Roles.Contains(Constant.Role.LiuLiang);
+            ViewBag.LookOwnChannel = AdminContext.CheckUserPermission("lookownchannel");
+            ViewBag.AddChecneLink = AdminContext.CheckUserPermission("addchecnelink"); ;
+            var ownChannel = ChannelContract.GetActiveOwnChannel();
+            if (ownChannel != null)
+            {
+                ViewBag.OwnChannelSelectText = ownChannel.ChannelId + "-" + ownChannel.ChannelName;
+            }
+
+            return View();
+        }
+
+        [Description("新增渠道链接(页面)")]
+        public ActionResult AddChannelLink()
+        {
+            ViewBag.LoginId = MemberInfo.LoginId;
+            ViewBag.IsLiuLiang = MemberInfo.Roles.Contains(Constant.Role.LiuLiang);
+            var addChecneLink = AdminContext.CheckUserPermission("addchecnelink");
+            ViewBag.ConfigSpecialPrepay = AppSettingService.GetAppValue("Channel_Config_Prepay_ProductSelect");
+            if (!addChecneLink)
+            {
+                return View("List");
+            }
+            return View();
+        }
+
+        [Description("编辑渠道链接(页面)")]
+        public ActionResult EditChannelLink()
+        {
+            int linkId = 0;
+            if (Request["channelLinkId"] != null)
+            {
+                linkId = int.Parse(Request["channelLinkId"].ToString());
+            }
+
+            bool lookOwnChannel = AdminContext.CheckUserPermission("lookownchannel");
+            bool searchPackageProfit = AdminContext.CheckUserPermission("SearchPackageProfit");
+            var channelLink = LinkContract.GetChannelLinkById(linkId);
+            var channelType = -1;
+            if (channelLink != null)
+            {
+                if (channelLink.ChannelId.HasValue)
+                {
+                    var channel = ChannelContract.GetModelById(channelLink.ChannelId.Value);
+                    if (channel != null && channel.ChannelType.HasValue)
+                    {
+                        channelType = channel.ChannelType.Value;
+                        if (channel.ChannelType.Value == 1)
+                        {
+                            ViewBag.IsModifySettlementAndProfit = AdminContext.CheckUserPermission("channellinktuanpaypriceprofit");
+                        }
+                    }
+                }
+            }
+            ViewBag.ChannelType = channelType;
+
+            bool isOwn = LinkContract.IsLinkBelongsToOwnChannel(linkId);
+            ViewBag.IsOwn = isOwn;
+            ViewBag.SearchPackageProfit = searchPackageProfit;
+            ViewBag.ProductId = channelLink != null ? channelLink.ProductId : null;
+            ViewBag.ConfigSpecialPrepay = AppSettingService.GetAppValue("Channel_Config_Prepay_ProductSelect");
+
+            if (lookOwnChannel) // 仅能查看只有渠道链接
+            {
+                if (!isOwn) // 非自有渠道链接
+                {
+                    return Content("您只能查看自有渠道链接！");
+                }
+            }
+
+            ViewBag.LoginId = MemberInfo.LoginId;
+            ViewBag.IsLiuLiang = MemberInfo.Roles.Contains(Constant.Role.LiuLiang);
+            ViewBag.ChannelLink = channelLink;
+
+            // 已经下单的链接不准修改渠道和地区，有需求邓政华提出
+            var orderCount = OrderContract.GetOrderListByLinkId(linkId);
+            ViewBag.IsOrders = 0;
+            if (orderCount != 0)
+            {
+                ViewBag.IsOrders = 1;
+            }
+
+            ViewBag.HasFreeBookingPackages = LinkContract.HasFreeBookingPackages(linkId);
+
+            ViewBag.SelectedPackageIds = LinkContract.GetPackageIds(linkId);
+
+            //指定的链接渠道，修改链接团购价不走品控审核，状态仍然是审核通过
+            ViewBag.ChannelNoAudit = AppSettingService.GetAppValue("Channel_Config_NoAudit", "");
+            ViewBag.EditLinkPermission = DeterminePermission( channelLink, isOwn);
+
+            return View();
+        }
+
+        private EditLinkPermissionCtrl DeterminePermission(ChannelLink channelLink, bool isOwnOfficalChannel)
+        {
+            var isLinkBelongSelf = channelLink.LiuLiangId == AdminContext.GetAdminInfo().LoginId;
+            var result = new EditLinkPermissionCtrl()
+            {
+                HasEditRight = isLinkBelongSelf || DetermineHasEditRight(channelLink, isOwnOfficalChannel),
+                IsAbleToActiveOrInactiveLink = isLinkBelongSelf || AdminContext.CheckUserPermission("isabletoactiveorinactivelink"),
+                IsEditSellPrice = isLinkBelongSelf || AdminContext.CheckUserPermission("linkeditsellprice"),
+            };
+            return result;
+
+        }
+
+        private bool DetermineHasEditRight(ChannelLink channelLink, bool isOwnOfficalChannel)
+        {
+            var hasEditRight = false;
+            if (isOwnOfficalChannel && AdminContext.CheckUserPermission("iseditownchannellink"))
+            {
+                hasEditRight = true;
+            }
+            else if (!isOwnOfficalChannel && AdminContext.CheckUserPermission("iseditnotownchannellink"))
+            {
+                hasEditRight = true;
+            }
+            return hasEditRight;
+        }
+
+
+
+        [Description("产品利润(页面)")]
+        public ActionResult ProductProfit(int channelLinkId)
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public ActionResult GetProductItemListByPackageId(int packageId)
+        {
+            var itemList = ProductPackageContract.GetProductItemListByPackageId(packageId).Where(p => p.IsDelete == false && p.IsActive == true).ToList();
+            var jsonData = JsonUtility.ToJson(itemList, true);
+            return Content(jsonData, "application/json");
+        }
+
+
+		public void dgdf()
+		{
+			fdg
+			ProductPackage.ContractItem.
+
+		}
+
+
+        /// <summary>
+        /// 新增渠道链接信息
+        /// </summary>
+        /// <param name="channelId"></param>
+        /// <param name="channelSubInfoId"></param>
+        /// <param name="liuLiangId"></param>
+        /// <param name="startDate"></param>
+        /// <param name="endDate"></param>
+        /// <param name="tuanPayPrice"></param>
+        /// <param name="tuanBasePrice"></param>
+        /// <param name="channelProfit"></param>
+        /// <param name="outerDescription"></param>
+        /// <param name="outerTitle"></param>
+        /// <param name="remark"></param>
+        /// <param name="outerLink"></param>
+        /// <param name="isActive"></param>
+        /// <param name="productPackageId"></param>
+        /// <param name="productId"></param>
+        /// <returns></returns>
+        [Description("保存新增渠道链接信息(提交)")]
+        [NoResubmit]
+        public ActionResult AddChannelLinkInfo(int channelId, int channelSubInfoId, int liuLiangId, DateTime? startDate, DateTime? endDate,
+           decimal? tuanPayPrice, decimal? tuanBasePrice, decimal? channelProfit,
+           string outerDescription, string outerTitle, string remark, string outerLink = "", bool isActive = true, int? productPackageId = null, int? productId = null, int? salePriceSystemType = 2)
+        {
+            if (!ModelState.IsValid && ModelState["RepeatSubmitMsg"] != null)
+            {
+                //return Content("{ \"msg\":\"" + ModelState["RepeatSubmitMsg"].Errors[0].ErrorMessage + "\"}");
+                return Content("{ \"msg\":\"success\"}");
+            }
+
+            var channelType = Request["channelType"];
+            //channelType: 渠道类型，0 为普通团购渠道，1 为预付渠道， 2 为官网渠道
+
+            var channelLink = new ChannelLink
+            {
+                ChannelId = channelId,
+                ChannelSubInfoId = channelSubInfoId,
+                LiuLiangId = liuLiangId,
+                OuterLink = channelType == "2" ? null : outerLink,
+                StartDate = channelType == "2" ? DateTime.Now : startDate,
+                EndDate = channelType == "2" ? DateTime.Now.AddYears(30) : endDate,
+                //IsActive = isActive,
+                TuanPayPrice = channelType == "0" ? tuanPayPrice : null,
+                TuanBasePrice = channelType == "0" ? tuanBasePrice : null,
+                ChannelProfit = channelType == "0" ? channelProfit : null,
+                OuterDescription = outerDescription,
+                OuterTitle = outerTitle,
+                Remark = remark,
+                ProductPackageId = channelType != "2" ? productPackageId : null,
+                ProductId = (channelType == "2" || (channelType == "1" && AppSettingService.GetAppValue("Channel_Config_Prepay_ProductSelect").Split(',').Contains(channelId.ToString()))) ? productId : null,
+                CreatedById = MemberInfo.LoginId,
+                CreatedByName = MemberInfo.UserName,
+                CreatedDate = DateTime.Now,
+                InnerLink = "-",
+                SalePriceSystemType = salePriceSystemType,
+            };
+            // 自有渠道的链接，审核状态默认“审核通过”
+            if (channelLink.ChannelId == (int)ChannelId.Own)
+            {
+                channelLink.Status = (int)ChannelLinkAuditStatus.AuditSuccess;
+            }
+            if (channelType == "1" && AppSettingService.GetAppValue("Channel_Config_Prepay_ProductSelect").Split(',').Contains(channelId.ToString()) && channelLink.ProductId == null)
+            {
+                return Content("{ \"msg\":\"必须选择所属酒景!\",\"channelId\":\"" + channelId + "\"}");
+            }
+            if (channelLink.ChannelId == 1 && channelLink.ProductId == null)
+            {
+                return Content("{ \"msg\":\"官网渠道链接必须选择所属酒景!\",\"channelId\":\"" + 0 + "\"}");
+            }
+            if (!productId.HasValue)
+            {
+                channelLink.InnerLink = "-";
+            }
+            var channelLinkId = 0;
+
+
+            //链接状态
+            if (channelLink.StartDate > DateTime.Now && channelLink.EndDate > DateTime.Now)
+            {
+                channelLink.ChannelLinkStatus = (int)ChannelLinkStatusEnum.OnShelf;
+            }
+            else if (channelLink.StartDate <= DateTime.Now && channelLink.EndDate > DateTime.Now)
+            {
+                channelLink.ChannelLinkStatus = (int)ChannelLinkStatusEnum.OnSale;
+            }
+            else if (channelLink.StartDate < DateTime.Now && channelLink.EndDate <= DateTime.Now)
+            {
+                channelLink.ChannelLinkStatus = (int)ChannelLinkStatusEnum.OffShelf;
+            }
+            else
+            {
+                channelLink.ChannelLinkStatus = (int)ChannelLinkStatusEnum.OffShelf;
+            }
+
+            try
+            {
+                channelLinkId = LinkContract.Create(channelLink);
+            }
+            catch (Exception ex)
+            {
+                Log4Logger.Error(new LogContent
+                {
+                    CreatedById = MemberInfo.LoginId,
+                    CreatedByName = MemberInfo.UserName,
+                    LogDescription = new ExceptionMessage(ex, "添加链接失败").ToString()
+                });
+                return Content("{ \"msg\":\"" + ex.Message + "\",\"channelId\":\"" + channelLinkId + "\"}");
+            }
+
+            channelLink.ChannelLinkId = channelLinkId;
+            // 非自有渠道，新建链接不生产预约链接，编辑链接审核通过时才生产
+            if (productId.HasValue)
+            {
+                channelLink.InnerLink = string.Format("http://www.yaochufa.com/package/{0}", productId);
+                LinkContract.Edit(channelLink);
+            }
+
+            string tip = "保存成功！";
+            List<ProductPackage> lstProductPackage = ProductPackageContract.GetProductPackageByChannelLinkId(channelLinkId);
+            if (lstProductPackage != null && lstProductPackage.Count > 0)
+            {
+                List<int> lstPackageId = lstProductPackage.Select(p => p.ProductPackageId).ToList();
+                List<ProductPackagePrice> lstPrice = ProductPackageContract.GetProductPackagePriceList(lstPackageId);
+                if (lstPrice == null || lstPrice.Count == 0)
+                {
+                    tip = "保存成功！但没有维护售价哦~";
+                }
+                else
+                {
+                    if (channelLink.Status != 1)
+                    {
+                        tip = "保存成功！品控审核通过后，就可使用啦~";
+                    }
+                }
+            }
+            return Content("{ \"msg\":\"success\",\"channelId\":\"" + channelLinkId + "\",\"tip\":\"" + tip + "\"}");
+        }
+
+        [Description("保存编辑后的渠道链接信息(提交)")]
+        [HttpPost]
+        public ActionResult EditChannelLinkInfo(FormCollection form, int channelLinkId, int channelId, int channelSubInfoId, int liuLiangId,
+            DateTime? startDate, DateTime? endDate,
+            decimal? tuanPayPrice, decimal? tuanBasePrice, decimal? channelProfit,
+            string outerDescription, string outerTitle, string remark, string outerLink = "", bool isActive = true,
+            int? productPackageId = null, int? productId = null)
+        {
+            var channelLink = LinkContract.GetChannelLinkById(channelLinkId);
+
+            //channelType: 渠道类型，0 为普通团购渠道，1 为预付渠道， 2 为官网渠道
+            var channelType = Request["channelType"];
+
+
+            //tyl
+            decimal? formalTuanPayPrice = channelLink.TuanPayPrice;
+            decimal? formalTuanBasePrice = channelLink.TuanBasePrice;
+            decimal? formalChannelProfit = channelLink.ChannelProfit;
+
+            channelLink.ChannelId = channelId;
+            channelLink.ChannelSubInfoId = channelSubInfoId;
+            channelLink.LiuLiangId = liuLiangId;
+            channelLink.OuterLink = channelType == "2" ? null : outerLink;
+            channelLink.StartDate = startDate;
+            channelLink.EndDate = endDate;
+            //channelLink.IsActive = isActive;
+            channelLink.TuanPayPrice = channelType == "0" ? tuanPayPrice : null;
+            channelLink.TuanBasePrice = channelType == "0" ? tuanBasePrice : null;
+            channelLink.ChannelProfit = channelType == "0" ? channelProfit : null;
+            channelLink.OuterDescription = outerDescription;
+            channelLink.OuterTitle = outerTitle;
+
+            channelLink.Remark = remark;
+            channelLink.ProductPackageId = channelType != "2" ? productPackageId : null;
+            channelLink.ProductId = (channelType == "2" || (channelType == "1" && AppSettingService.GetAppValue("Channel_Config_Prepay_ProductSelect").Split(',').Contains(channelId.ToString()))) ? productId : null;
+            channelLink.ModifiedById = MemberInfo.LoginId;
+            channelLink.ModifiedByName = MemberInfo.UserName;
+            channelLink.ModifiedDate = DateTime.Now;
+
+            if (channelLink.ChannelLinkStatus != 0)
+            {
+                channelLink.ChannelLinkStatus = LinkContract.GetLinkStatus(channelLink);
+            }
+
+            //salePriceSystemType: 售价体系，1 为旧，2 为新
+            int salePriceSystemType = 1;
+            if (!string.IsNullOrWhiteSpace(Request["SalePriceSystemType"]))
+            {
+                int.TryParse(Request["SalePriceSystemType"], out salePriceSystemType);
+            }
+            channelLink.SalePriceSystemType = salePriceSystemType;
+            if (channelLink.SalePriceSystemType == 2)
+            {
+                channelLink.TuanPayPrice = null;
+                channelLink.TuanBasePrice = null;
+                channelLink.ChannelProfit = null;
+            }
+
+            if (channelType == "1" && AppSettingService.GetAppValue("Channel_Config_Prepay_ProductSelect").Split(',').Contains(channelId.ToString()) && channelLink.ProductId == null)
+            {
+                return Content("{ \"msg\":\"必须选择所属酒景!\",\"channelId\":\"" + channelId + "\"}");
+                //return Content("{ \"msg\":\"success\",\"channelId\":\"" + channelLinkId + "\"}");
+            }
+            if (channelType == "2")
+            {
+                channelLink.InnerLink = string.Format("http://www.yaochufa.com/package/{0}", productId);
+            }
+            else
+            {
+                // 非自有渠道，编辑链接不生产预约链接，编辑链接审核通过时才生产
+                if (channelLink.Status == (int)ChannelLinkAuditStatus.AuditSuccess)
+                {
+                    channelLink.InnerLink = string.Format("http://www.yaochufa.com/deal/{0}-{1}", channelLinkId, channelId);
+                }
+            }
+            // 审核通过后，修改链接信息。状态为变更审核
+            if (channelLink.Status == (int)ChannelLinkAuditStatus.AuditSuccess && channelLink.ChannelId != (int)ChannelId.Own &&
+                !string.IsNullOrEmpty(form["hasPackageOpts"]) && form["hasPackageOpts"] == "true")
+            {
+                var oldType = channelLink.SalePriceSystemType.HasValue ? channelLink.SalePriceSystemType.Value : 1;
+                //仅在用户修改“基础团购价”“返点”“团购结算价”，更改值与原值不同时,修改成“变更审核”
+                if (oldType != salePriceSystemType || formalTuanPayPrice != channelLink.TuanPayPrice || formalTuanBasePrice != channelLink.TuanBasePrice || formalChannelProfit != channelLink.ChannelProfit)
+                {
+                    channelLink.Status = (int)ChannelLinkAuditStatus.ChangeAudit;
+                }
+            }
+            //if (channelLink.Status == (int)ChannelLinkAuditStatus.AuditSuccess && channelLink.SalePriceSystemType != salePriceSystemType)
+            //{
+            //    channelLink.Status = (int)ChannelLinkAuditStatus.ChangeAudit;
+            //}
+
+            string modifiedData;
+            var count = LinkContract.Edit(channelLink, out modifiedData);
+            if (count > 0)
+            {
+                if (modifiedData != "")
+                {
+                    var str = "";
+                    if (!string.IsNullOrEmpty(form["txtupdateReason"]))
+                    {
+                        str = "(原因：" + form["txtupdateReason"] + ")";
+                    }
+                    //添加操作日志
+                    OperationResult result = ChannelLinkLogContract.Create(new ChannelLinkLog()
+                    {
+                        LogTypeId = LogTypeEnums.EditChannelLink,//更新链接信息
+                        ChannelLinkId = channelLinkId,
+                        LogRemark = modifiedData + str
+                    });
+
+                }
+            }
+
+            return Content("{ \"msg\":\"success\",\"channelId\":\"" + channelLinkId + "\"}");
+        }
+
+        [Description("根据链接ID获取渠道链接信息(页面)")]
+        //[HttpPost]
+        public ActionResult GetChannelLinkById(int channelLinkId)
+        {
+            var channelLink = LinkContract.GetChannelLinkById(channelLinkId);
+            var modifyPrice = AdminContext.CheckUserPermission("channellinktuanpaypriceprofit");
+            if (!modifyPrice)
+            {
+                channelLink.ChannelProfit = 0;
+                channelLink.TuanPayPrice = 0;
+            }
+
+            return Content(JsonUtility.ToJson(channelLink, false));
+        }
+
+        /// <summary>
+        /// 加载链接日志列表数据
+        /// </summary>
+        /// <param name="form"></param>
+        /// <returns></returns>
+        [Description("加载渠道链接日志列表数据")]
+        [HttpPost]
+        public ActionResult ChannelLinkLogList(FormCollection form)
+        {
+            int pageIndex = 1;
+            int pageSize = 10;
+            int.TryParse(form["page"], out pageIndex);//页数
+            int.TryParse(form["rows"], out pageSize);//页尺寸
+            var sort = form["sort"];
+            var order = form["order"];
+            var channelLinkId = 0;
+            int.TryParse(form["ChannelLinkId"], out channelLinkId);//链接ID
+            ChannelLinkLog model = new ChannelLinkLog()
+            {
+                ChannelLinkId = channelLinkId
+            };
+            var total = 0;
+            //准备查询条件
+            var list = ChannelLinkLogContract.GetList(model, pageIndex, pageSize, sort + " " + order, out total);
+            var dataGrid = new GridModel<List<ChannelLinkLog>>
+            {
+                total = total,
+                rows = list
+            };
+            var jsonData = JsonUtility.ToJson(dataGrid, true);
+            return Content(jsonData);
+        }
+
+
+
+        /// <summary>
+        /// 加载链接列表数据
+        /// </summary>
+        /// <param name="form"></param>
+        /// <returns></returns>
+        [Description("加载渠道链接列表数据")]
+        [HttpPost]
+        public ActionResult LinkList(FormCollection form)
+        {
+            ///int productId = 0; // 冠飞产品管理传过来的产品ID
+            LinkQueryModel model = new LinkQueryModel();
+            model.ProductId = !string.IsNullOrEmpty(form["ProductId"]) ? int.Parse(form["ProductId"]) : 0;
+            int pageIndex = 1;
+            int pageSize = 10;
+            int.TryParse(form["page"], out pageIndex);//页数
+            int.TryParse(form["rows"], out pageSize);//页尺寸
+            model.PageIndex = pageIndex;
+            model.PageSize = pageSize;
+            model.Sort = form["sort"];
+            model.Order = form["order"];
+            var key = form["Key"];
+            var channelId = form["ChannelId"];
+            var channelSubId = form["ChannelSubId"];
+            model.GroupStartPrice = form["GroupStartPrice"];
+            model.GroupEndPrice = form["GroupEndPrice"];
+            model.CreateStartDate = form["CreateStartDate"];
+            model.CreateEndDate = form["CreateEndDate"];
+            //model.IsOnLine = form["IsOnLine"] != null ? Boolean.Parse(form["IsOnLine"].ToString()) : true;
+            var product = form["Product"];
+            var bd = form["BD"];  //实际传过来的是流量ID
+            model.CreatedByName = form["CreatedByName"];//创建人
+            model.StartADate = form["StartADate"];
+            model.EndADate = form["EndADate"];
+            model.StartBDate = form["StartBDate"];
+            model.EndBDate = form["EndBDate"];
+            var isPreSale = form["IsPreSale"];
+            model.IsPreSale = isPreSale;
+            int channelLinkId = 0;
+            int.TryParse(form["hidChannelLinkId"], out channelLinkId);
+            model.AuditStatus = form["auditStatus"];
+            model.LiuLiangName = form["liuLiangName"];
+            model.ProductPackageKey = form["ProductPackageKey"];
+            model.ChannelNameKey = form["ChannelNameKey"];
+            model.ChannelLinkNameKey = form["ChannelLinkNameKey"];
+            if (!string.IsNullOrEmpty(form["ChannelLinkStatus"]))
+            {
+                model.ChannelLinkStatus = int.Parse(form["ChannelLinkStatus"]);
+            }
+            else
+            {
+                model.ChannelLinkStatus = -1;
+            }
+            if (!string.IsNullOrEmpty(key))
+            {
+                if (RegexHelper.IsNumber(key))
+                {
+                    model.ChannelLinkId = int.Parse(key);
+                }
+                //else {
+                model.OuterTitle = key;
+                model.LoginAccount = key;
+                //}
+            }
+            if (!string.IsNullOrEmpty(product))
+            {
+                if (RegexHelper.IsNumber(product))
+                {
+                    model.ProductId = int.Parse(product);
+                }
+                else
+                {
+                    model.ProductName = product;
+                }
+            }
+            var dataGrid = new GridModel<List<ChannelLinkModel>>
+            {
+                total = 0,
+            };
+
+            if (AdminContext.CheckUserPermission("lookownchannel")) // 仅允许查看自有渠道链接
+            {
+                var ownChannel = ChannelContract.GetActiveOwnChannel();
+                model.ChannelId = ownChannel != null ? ownChannel.ChannelId : -1;
+            }
+            else
+            {
+                model.ChannelId = !string.IsNullOrEmpty(channelId) ? int.Parse(channelId) : 0;
+            }
+            if (model.ChannelId < 0)
+            {
+                return Content(JsonUtility.ToJson(dataGrid, true));
+            }
+
+            model.ChannelSubInfoId = !string.IsNullOrEmpty(channelSubId) ? int.Parse(channelSubId) : 0;
+            model.LiuLiangId = !string.IsNullOrEmpty(bd) ? int.Parse(bd) : 0;
+
+            var total = 0;
+            //准备查询条件
+            var list = LinkContract.GetLinkList(model, out total);
+            //判断是否开启OTA推送 by ckg
+            var linkIds = list.Select(x => x.ChannelLinkId).ToList();
+            var pushList = (TPGoodsMappingContract.GetPushDataList(linkIds) ?? new List<TPGoodsMapping>())
+                .Select(x => x.ChannelLinkId.GetValueOrDefault(0))
+                .ToList();
+
+            list.ForEach(x => x.PushData = (pushList.Contains(x.ChannelLinkId)));
+
+            var lookchanneluser = AdminContext.CheckUserPermission("lookchanneluser");
+
+            // 获取所包含产品
+            //foreach (ChannelLinkModel item in list)
+            for (var i = 0; i < list.Count; i++)
+            {
+                var item = list[i];
+                // 得到链接ID对应的产品列表
+                var mappingPackageList = item.ChannelPackageMapping;
+                if (mappingPackageList == null || mappingPackageList.Count == 0) { continue; }
+                // 链接包含的产品是否存在预售产品
+                var isPreSaleList = mappingPackageList.Where(c => c.IsPreSale == true).ToList();
+                if (isPreSaleList == null || isPreSaleList.Count == 0)
+                {
+                    // 链接不包含预售产品，选择条件是要包含预售产品，则移除
+                    if (!string.IsNullOrEmpty(isPreSale) && isPreSale == "true")
+                    {
+                        list.Remove(item);
+                        continue;
+                    }
+                }
+                else
+                {
+                    // 链接包含预售产品，选择条件是要不包含预售产品，则移除 (isPreSale=="" ，则全部)
+                    if (!string.IsNullOrEmpty(isPreSale) && isPreSale == "false")
+                    {
+                        list.Remove(item);
+                        continue;
+                    }
+                }
+
+                string preSaleStr = string.Empty;
+
+                //排好序的产品ID集合
+                List<int?> productPackageIds = item.ChannelPackageMapping.Where(c => !c.IsDelete).OrderBy(c => c.Sort).ThenBy(c => c.ProductPackageId).Select(c => c.ProductPackageId).ToList();
+                if (item.ProductPackageList == null)
+                    item.ProductPackageList = new List<ProductPackage>();
+
+                foreach (var id in productPackageIds)
+                {
+                    ProductPackage package = item.ProductPackageList.FirstOrDefault(c => c.ProductPackageId == id);
+                    if (package == null) continue;
+                    package.IsPreSale = item.ChannelPackageMapping.Where(c => c.ProductPackageId == package.ProductPackageId).FirstOrDefault().IsPreSale;
+                    if (package.IsPreSale != null && package.IsPreSale == true)
+                    {
+                        preSaleStr = package.IsPreSale == true ? "<font style='color:#FF0000;padding-left:5px;'>预售</font>" : "";
+                        item.IncludeProduct += "<a href='/Product/ProductPackage/UpdateProductPackage?packageId=" + package.ProductPackageId + "' title='产品信息编辑功能' style='margin-right:6px;margin-bottom:6px;float:left;color:#333' target='_blank'>" + package.PackageName + preSaleStr + "</a>";
+                    }
+                    else
+                    {
+                        item.IncludeProduct += "<a href='/Product/ProductPackage/UpdateProductPackage?packageId=" + package.ProductPackageId + "' title='产品信息编辑功能' style='margin-right:6px;margin-bottom:6px;float:left;color:#333' target='_blank'>" + package.PackageName + "</a>";
+                    }
+                }
+                // item.IncludeProduct = item.IncludeProduct.Remove(item.IncludeProduct.LastIndexOf(','), 1);
+
+                //查看渠道账户权限
+                if (!lookchanneluser)
+                {
+                    item.LoginAccount = "******";
+                    item.LoginPassword = "******";
+                }
+            }
+            list.ForEach(m => m.TuanPayPrice = null);
+            dataGrid = new GridModel<List<ChannelLinkModel>>
+            {
+                total = total,
+                rows = list
+            };
+            var jsonData = JsonUtility.ToJson(dataGrid, true);
+            return Content(jsonData);
+        }
+        /// <summary>
+        /// 导出链接列表数据
+        /// </summary>
+        /// <param name="form"></param>
+        /// <returns></returns>
+        [Description("导出链接列表数据")]
+        [HttpPost]
+        public ActionResult ExportData(FormCollection form, string titles = "", string columns = "")
+        {
+            var result = new OperationResult();
+            if (!AdminContext.CheckUserPermission("channellink_ExportData"))
+            {
+                result.Message = "你无此操作权限。";
+                result.ResultType = OperationResultType.PurviewLack;
+                return Json(result);
+            }
+
+            ///int productId = 0; // 冠飞产品管理传过来的产品ID
+            LinkQueryModel model = new LinkQueryModel();
+            model.ProductId = !string.IsNullOrEmpty(form["ProductId"]) ? int.Parse(form["ProductId"]) : 0;
+            int pageIndex = 1;
+            int pageSize = int.MaxValue;
+            //int.TryParse(form["page"], out pageIndex);//页数
+            //int.TryParse(form["rows"], out pageSize);//页尺寸
+            model.PageIndex = pageIndex;
+            model.PageSize = pageSize;
+            model.Sort = form["sort"];
+            model.Order = form["order"];
+            var key = form["Key"];
+            var channelId = form["ChannelId"];
+            var channelSubId = form["ChannelSubId"];
+            model.GroupStartPrice = form["GroupStartPrice"];
+            model.GroupEndPrice = form["GroupEndPrice"];
+            model.CreateStartDate = form["CreateStartDate"];
+            model.CreateEndDate = form["CreateEndDate"];
+            //model.IsOnLine = form["IsOnLine"] != null ? Boolean.Parse(form["IsOnLine"].ToString()) : true;
+            var product = form["Product"];
+            var bd = form["BD"];  //实际传过来的是流量ID
+            model.CreatedByName = form["CreatedByName"];//创建人
+            model.StartADate = form["StartADate"];
+            model.EndADate = form["EndADate"];
+            model.StartBDate = form["StartBDate"];
+            model.EndBDate = form["EndBDate"];
+            var isPreSale = form["IsPreSale"];
+            model.IsPreSale = isPreSale;
+            int channelLinkId = 0;
+            int.TryParse(form["hidChannelLinkId"], out channelLinkId);
+            model.AuditStatus = form["auditStatus"];
+            model.LiuLiangName = form["liuLiangName"];
+            model.ProductPackageKey = form["ProductPackageKey"];
+            model.ChannelNameKey = form["ChannelNameKey"];
+            model.ChannelLinkNameKey = form["ChannelLinkNameKey"];
+            if (!string.IsNullOrEmpty(key))
+            {
+                if (RegexHelper.IsNumber(key))
+                {
+                    model.ChannelLinkId = int.Parse(key);
+                }
+                //else {
+                model.OuterTitle = key;
+                model.LoginAccount = key;
+                //}
+            }
+            if (!string.IsNullOrEmpty(product))
+            {
+                if (RegexHelper.IsNumber(product))
+                {
+                    model.ProductId = int.Parse(product);
+                }
+                else
+                {
+                    model.ProductName = product;
+                }
+            }
+            var dataGrid = new GridModel<List<ChannelLinkModel>>
+            {
+                total = 0,
+            };
+
+            if (AdminContext.CheckUserPermission("lookownchannel")) // 仅允许查看自有渠道链接
+            {
+                var ownChannel = ChannelContract.GetActiveOwnChannel();
+                model.ChannelId = ownChannel != null ? ownChannel.ChannelId : -1;
+            }
+            else
+            {
+                model.ChannelId = !string.IsNullOrEmpty(channelId) ? int.Parse(channelId) : 0;
+            }
+            if (model.ChannelId < 0)
+            {
+                return Content(JsonUtility.ToJson(dataGrid, true));
+            }
+
+            model.ChannelSubInfoId = !string.IsNullOrEmpty(channelSubId) ? int.Parse(channelSubId) : 0;
+            model.LiuLiangId = !string.IsNullOrEmpty(bd) ? int.Parse(bd) : 0;
+
+            var total = 0;
+            //准备查询条件
+            var list = LinkContract.GetLinkList(model, out total);
+
+            NpoiHelper excel = new NpoiHelper();
+            string fileName = "ChannelLinkList.xls";
+            string relaticePath = "/Upload/ExportList/";
+            string absolutePath = Server.MapPath(relaticePath);
+            string relaticeFilepath = relaticePath + fileName;
+            string absoluteFilepath = absolutePath + fileName;
+            if (!Directory.Exists(absolutePath))
+            {
+                Directory.CreateDirectory(absolutePath);
+            }
+
+            var exportList = new List<dynamic>();
+            list.ForEach(o =>
+            {
+                o.ProductPackageList.ToList().ForEach(oo => oo.PackageName = "【" + oo.PackageName + "】");
+                var packageName = o.ProductPackageList.Select(oo => oo.PackageName).ToList();
+                dynamic item = new
+                {
+                    ChannelLinkId = o.ChannelLinkId,
+                    OuterTitle = o.OuterTitle,
+                    IncludeProduct = string.Join(" ", packageName),
+                    ProductType = o.ProductType,
+                    ProvinceName = o.ProvinceName,
+                    ChannelName = o.ChannelName,
+                    CityName = o.ChannelSubInfo.CityName,
+                    StartDate = o.StartDate,
+                    EndDate = o.EndDate,
+                    BDName = o.BDName
+                };
+                exportList.Add(item);
+            });
+            bool res = excel.CreateExcel2003(absoluteFilepath, "数据列表", exportList.ToArray(), titles, columns, null);
+
+            if (res)
+            {
+                result.Message = relaticeFilepath;
+                result.ResultType = OperationResultType.Success;
+            }
+            else
+            {
+                result.Message = "生成Excel文件失败,请重试";
+                result.ResultType = OperationResultType.Error;
+            }
+            return Json(result);
+            //var dataGrid = new GridModel<List<ChannelLinkModel>>
+            //{
+            //    total = total,
+            //    rows = list
+            //};
+            //var jsonData = JsonUtility.ToJson(dataGrid, true);
+            //return Content(jsonData);
+        }
+
+        /// <summary>
+        /// 复制链接
+        /// </summary>
+        [Description("复制团购渠道链接信息")]
+        [HttpPost]
+        public ActionResult CopyChannelLinkInfo(int channelLinkId)
+        {
+            var newChannelLinkId = LinkContract.CopyChannelLinkInfo(channelLinkId, MemberInfo.LoginId, MemberInfo.UserName, 1);
+            return Content("{ \"msg\":\"success\",\"channelLinkId\":\"" + newChannelLinkId + "\"}");
+        }
+
+        /// <summary>
+        /// 在线调价
+        /// </summary>
+        [Description("在线调价")]
+        [HttpPost]
+        public ActionResult ReadjustChannelPrice(int channelLinkId)
+        {
+            var channelLink = LinkContract.GetChannelLinkById(channelLinkId);
+            if (channelLink.IsEditPrice != true)
+            {
+                var newChannelLinkId = LinkContract.CopyChannelLinkInfo(channelLinkId, MemberInfo.LoginId,
+                    MemberInfo.UserName, 0);
+                channelLink.IsEditPrice = true;
+                LinkContract.Edit(channelLink);
+                return Content("{ \"msg\":\"success\",\"channelLinkId\":\"" + newChannelLinkId + "\"}");
+            }
+            return Content("{ \"msg\":\"false\",\"detail\":\"该链接已经调过价，请于调价后链接调价\"}");
+        }
+
+        /// <summary>
+        /// 删除选择的渠道链接(逻辑删除)
+        /// </summary>
+        /// <param name="linkIds"></param>
+        /// <returns></returns>
+        [Description("删除渠道链接")]
+        [HttpPost]
+        public ActionResult Delete(int[] linkIds)
+        {
+            bool result = LinkContract.Delete(linkIds);
+
+            return Json(new { success = result, Message = result ? "删除成功" : "删除失败" });
+        }
+
+        [Description("检测产品是否正在使用")]
+        [HttpPost]
+        public ActionResult CheckProductIsUsed(int productId, int channelLinkId = 0, int channelId = -1, int ownChannelId = -1)
+        {
+            //判断是否忽略已使用链接的检测
+            string linkIds = LinkContract.GetValueByKey("Channel_Config_AddLink_ProductIds");
+            if (!string.IsNullOrWhiteSpace(linkIds) && linkIds.Split(',').Contains(productId.ToString()))
+            {
+                return Content("{ \"msg\":\"false\"}");
+            }
+
+            if (channelId > 0)
+            {
+                var result = LinkContract.GetChannelLinkIdByProductId(productId, channelId);
+                return Content(result > 0 ? "{ \"msg\":\"true\"}" : "{ \"msg\":\"false\"}");
+            }
+            else
+            {
+                var checkProductIsUsedByChannel = AppSettingService.GetAppValue("Link_CheckProductIsUsedByChannel", false);
+                if (checkProductIsUsedByChannel)
+                {
+                    var result = LinkContract.GetChannelLinkIdByProductId(productId, ownChannelId);
+                    return Content(result > 0 && channelLinkId != result ? "{ \"msg\":\"true\"}" : "{ \"msg\":\"false\"}");
+                }
+
+                var channelLinkList = LinkContract.GetChannelLinkByProductId(productId, channelLinkId, false);
+                return Content(channelLinkList.Count > 0 ? "{ \"msg\":\"true\"}" : "{ \"msg\":\"false\"}");
+            }
+
+        }
+
+        [Description("根据渠道Id得到OTA商品列表未关联列表")]
+        [HttpPost]
+        public ActionResult GetOTAList(int channelId, int linkId, string hotelName, string roomName)
+        {
+            var res = ThirdPartyContract.GetGoodsByChannelId(channelId, linkId, false, hotelName, roomName);
+            var list = new List<GetGoodsesVModel>();
+            if (res != null && res.Success)
+            {
+                list = res.Data ?? new List<GetGoodsesVModel>();
+            }
+            var dataGrid = new GridModel<List<GetGoodsesVModel>>
+            {
+                total = list.Count,
+                rows = list
+            };
+
+            var jsonData = JsonUtility.ToJson(dataGrid, true);
+            return Content(jsonData);
+        }
+
+        [Description("取消套餐与携程产品关联")]
+        [HttpPost]
+        public ActionResult CancelCtripProduct(int productPackageId, string goodsId, int channelLinkId)
+        {
+            var res = ThirdPartyContract.OTACancleAssociateGoods(new Model.ApiInputModel.DCPModule.CancleAssociateGoodsIModel
+            {
+                ProductPackageId = productPackageId,
+                CooperatorItemId = goodsId,
+                ChannelLinkId = channelLinkId,
+                OperatorId = MemberInfo.LoginId,
+                OperatorName = MemberInfo.UserName,
+            });
+            return Content(JsonUtility.ToJson(res));
+        }
+
+        [Description("增加套餐与携程产品关联")]
+        [HttpPost]
+        public ActionResult AddCtripProduct(string goodsId, int channelId, int productPackageId, int providerId, string cooperatorName, int key)
+        {
+            var res = ThirdPartyContract.OTAAssociateGoods(new Model.ApiInputModel.DCPModule.AssociateGoodsIModel
+            {
+                CooperatorItemId = goodsId,
+                ChannelLinkId = channelId,
+                ProductPackageId = productPackageId,
+                ProviderId = providerId,
+                CooperatorName = cooperatorName,
+
+                Key = key,
+                OperatorDate = DateTime.Now,
+                OperatorId = MemberInfo.LoginId,
+                OperatorName = MemberInfo.UserName
+
+            });
+            return Content(JsonUtility.ToJson(res));
+        }
+
+        [Description("更新推送开关")]
+        [HttpPost]
+        public ActionResult UpdatePushData(int channelLinkId, int pushData, int cooperatorId)
+        {
+            var b = TPGoodsMappingContract.UpdatePushData(channelLinkId, pushData, cooperatorId, MemberInfo);
+
+            return Json(b, JsonRequestBehavior.AllowGet);
+        }
+
+        [Description("关联-推送房态")]
+        [HttpPost]
+        public ActionResult PushCtrip(int linkId, int pid)
+        {
+            var b = TPGoodsMappingContract.PushCtrip(linkId, pid, MemberInfo);
+            return Json(b, JsonRequestBehavior.AllowGet);
+        }
+
+        [Description("审核渠道链接")]
+        [HttpPost]
+        public ActionResult AuditLink(string linkId, string linkName, string reason, string mark, string flowId, string flowText, int auditStatus, string channelId)
+        {
+            OperationResult result = new OperationResult(OperationResultType.Success, "操作成功！");
+            int channleLinkId = int.Parse(linkId);
+            int auditResult = LinkContract.UpdateAuditStatus(channleLinkId, reason, auditStatus);
+            if (auditResult == 0)
+            {
+                result.ResultType = OperationResultType.Error;
+                result.Message = "操作失败";
+            }
+            //else if (auditResult == -1)
+            //{
+            //    result.ResultType = OperationResultType.Error;
+            //    result.Message = "售价不能为空，请先填写售价";
+            //}
+            else
+            {
+                string logStr = "";
+                if (auditStatus == (int)ChannelLinkAuditStatus.AuditSuccess)
+                {
+                    logStr = "审核渠道链接操作：审核结果【审核通过】";
+
+                    if (!string.IsNullOrEmpty(mark))
+                    {
+                        logStr += ",备注：" + mark;
+                    }
+
+                    // 非自有渠道审核通过时才生产预约链接
+                    string innerLink = string.Format("http://www.yaochufa.com/deal/{0}-{1}", channleLinkId, channelId);
+                    int count = LinkContract.UpdateInnerLink(innerLink, channleLinkId);
+                }
+                else if (auditStatus == (int)ChannelLinkAuditStatus.AuditFaild)
+                {
+                    // 审核不通过，发送系统消息提醒
+                    string content = MemberInfo.UserName + "审核  (链接ID：" + channleLinkId + ")" + linkName + "审核不通过，原因：" + reason;
+                    string url = "/Link/ChannelLink/EditChannelLink?channelLinkId=" + channleLinkId;
+                    MessageContract.AddSiteMessage(int.Parse(flowId), (int)UserType.SystemUser, content, "", channleLinkId, "链接审核", channleLinkId, DateTime.Now, url, null, "");
+                    logStr = "审核渠道链接操作：审核结果【审核不通过】，原因：" + reason;
+
+                }
+                else if (auditStatus == (int)ChannelLinkAuditStatus.InAudit)
+                {
+                    logStr = "提交审核";
+                }
+
+                //添加操作日志
+                OperationResult log = ChannelLinkLogContract.Create(new ChannelLinkLog()
+                {
+                    LogTypeId = LogTypeEnums.EditChannelLink,//更新链接信息
+                    ChannelLinkId = channleLinkId,
+                    LogRemark = logStr
+                });
+            }
+
+            return Json(result);
+        }
+
+        #region  归属人 2015-06-04
+        /// <summary>
+        /// 归属人页面
+        /// </summary>
+        /// <param name="objcetType">1供应商 2酒景 3产品 4链接</param>
+        /// <param name="objcetName">名称</param>
+        /// <returns></returns>
+        public ActionResult BelongingList(string objcetType, string objcetName)
+        {
+            ViewBag.objcetType = objcetType;
+            ViewBag.objcetName = objcetName;
+            return View();
+        }
+
+        /// <summary>
+        /// 更新链接归属人
+        /// </summary>
+        /// <param name="linkIds">链接ID集合</param>
+        /// <param name="userIds">用户集合</param>
+        /// <param name="targetUserId">目标人</param>
+        /// <param name="type">更新类型 0 按用户 1按链接</param>
+        /// <returns></returns>
+        public ActionResult UpdateBelonging(List<int> linkIds, List<int> userIds, int? targetUserId, int type)
+        {
+            var result = LinkContract.UpdateBelonging(linkIds, userIds, targetUserId, type);
+            return Json(result);
+        }
+
+        #endregion
+
+        /// <summary>
+        /// 获取链接产品分组信息
+        /// </summary>
+        /// <param name="channelLinkId"></param>
+        /// <returns></returns>
+        public ActionResult GetChannelLinkPackageGroups(int channelLinkId)
+        {
+            var list = LinkContract.GetChannelLinkPackageGroups(channelLinkId);
+            var dataGrid = new GridModel<List<ChannelLinkPackageGroupModel>>
+            {
+                //total = total,
+                rows = list
+            };
+            var jsonData = JsonUtility.ToJson(dataGrid, true);
+            return Content(jsonData);
+        }
+        #region 查询某链接下不可购买详情原因 2015-11-03
+
+        ///// <summary>
+        ///// 查询链接是否可预定
+        ///// </summary>
+        ///// <returns></returns>
+        //public ActionResult QueryChannelLink()
+        //{
+        //    return View();
+        //}
+        ///// <summary>
+        ///// 根据链接ID获取是否可预定
+        ///// </summary>
+        ///// <param name="linkid"></param>
+        ///// <returns></returns>
+        //public ActionResult GetCannotBookReasonDetail(int linkid)
+        //{
+        //    var url = ConfigurationManager.AppSettings["InnerApiUrl"];
+
+        //    var data = url + "/v2/ProductPackage/GetCannotBookReasonDetail?linkid=" + linkid;
+        //    var jsonData = JsonUtility.ToJson(data, true);
+        //    return Content(jsonData);
+        //}
+
+        #endregion
+
+        /// <summary>
+        /// 返回链接下的步骤
+        /// </summary>
+        /// <param name="channelLinkId">链接id</param>
+        /// <returns></returns>
+        public ActionResult GetStepsStatus(int channelLinkId)
+        {
+            var result = LinkContract.GetLinkStepsStatusModel(channelLinkId);
+            return Json(result);
+        }
+
+        /// <summary>
+        /// "激活/失效 链接"
+        /// </summary>
+        /// <param name="channelLinkId"></param>
+        /// <param name="active"></param>
+        /// <returns></returns>
+        public ActionResult UpdateChannelLinkStatus(int channelLinkId, int active)
+        {
+            string modifiedData;
+            var result = LinkContract.UpdateChannelLinkStatus(channelLinkId, active, out modifiedData);
+            if (modifiedData != "")
+            {
+                //添加操作日志
+                ChannelLinkLogContract.Create(new ChannelLinkLog()
+                {
+                    LogTypeId = LogTypeEnums.EditChannelLink,//更新链接信息
+                    ChannelLinkId = channelLinkId,
+                    LogRemark = modifiedData
+                });
+            }
+            return Content("{ \"msg\":\"success\",\"linkStatus\":\"" + result + "\"}");
+        }
+
+
+        /// <summary>
+        /// 编辑链接添加备注到日志
+        /// </summary>
+        /// <param name="remark"></param>
+        /// <returns></returns>
+        [HttpPost]
+        public ActionResult AddChannelLinkRemark(string linkId, string remark)
+        {
+            OperationResult oResult = new OperationResult(OperationResultType.Warning, "添加失败", "");
+
+            int channelId = 0;
+            if (!int.TryParse(linkId, out channelId))
+            {
+                return Content(JsonUtility.ToJson(oResult, true));
+            }
+
+            //添加操作日志
+            oResult = ChannelLinkLogContract.Create(new ChannelLinkLog()
+            {
+                LogTypeId = LogTypeEnums.EditChannelLink,
+                ChannelLinkId = channelId,
+                LogRemark = "添加备注：" + remark
+            });
+
+            var jsonData = JsonUtility.ToJson(oResult, true);
+            return Content(jsonData);
+        }
+    }
+
+    public class EditLinkPermissionCtrl
+    {
+        public bool HasEditRight { get; set; }
+        public bool IsEditSellPrice { get; set; }
+        public bool IsAbleToActiveOrInactiveLink { get; set; }
+    }
+}
